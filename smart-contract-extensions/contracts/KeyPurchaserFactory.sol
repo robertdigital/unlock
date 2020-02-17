@@ -2,6 +2,7 @@ pragma solidity 0.5.16;
 
 import './KeyPurchaser.sol';
 import 'hardlydifficult-ethereum-contracts/contracts/proxies/CloneFactory.sol';
+import 'unlock-abi-1-3/IPublicLockV6.sol';
 
 /**
  * @notice A factory for creating keyPurchasers.
@@ -12,6 +13,8 @@ import 'hardlydifficult-ethereum-contracts/contracts/proxies/CloneFactory.sol';
 contract KeyPurchaserFactory
 {
   using CloneFactory for address;
+
+  event KeyPurchaserCreated(address indexed forLock, address indexed keyPurchaser);
 
   address public keyPurchaserTemplate;
   mapping(address => address[]) internal lockToKeyPurchasers;
@@ -25,7 +28,7 @@ contract KeyPurchaserFactory
    * @notice Deploys a new KeyPurchaser for a lock and stores the address for reference.
    */
   function deployKeyPurchaser(
-    address _lock,
+    IPublicLock _lock,
     uint _maxKeyPrice,
     uint _renewWindow,
     uint _renewMinFrequency,
@@ -34,8 +37,9 @@ contract KeyPurchaserFactory
   {
     require(_lock.owner() == msg.sender, 'ONLY_OWNER');
     address purchaser = keyPurchaserTemplate._createClone();
-    KeyPurchaser(purchaser).initialize(IPublicLock(_lock), _maxKeyPrice, _renewWindow, _renewMinFrequency, _isSubscription);
-    lockToKeyPurchasers[_lock].push(purchaser);
+    KeyPurchaser(purchaser).initialize(_lock, _maxKeyPrice, _renewWindow, _renewMinFrequency, _isSubscription);
+    lockToKeyPurchasers[address(_lock)].push(purchaser);
+    emit KeyPurchaserCreated(address(_lock), purchaser);
   }
 
   /**
